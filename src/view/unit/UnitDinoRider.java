@@ -7,13 +7,17 @@ import java.awt.*;
 /**
  * Всадник на динозавре: спавнится, идёт к башне,
  * останавливается и атакует, пока башня не разрушится.
+ *
+ * by Bebron28 & AmericanCoolBoyUSA777
  */
 public class UnitDinoRider extends BaseUnit {
 
     // Переменные для анимации атаки
     private boolean isAttacking = false;
     private float attackAnimationTime = 0f;
-    private final float ATTACK_ANIMATION_DURATION = 0.3f;
+    private final float ATTACK_ANIMATION_DURATION = 0.4f;
+    private float currentAngle = -20f;
+    private float targetAngle = -20f;
 
     public static Builder builder() {
         return new UnitDinoRider().new Builder();
@@ -33,36 +37,46 @@ public class UnitDinoRider extends BaseUnit {
     public void update(float deltaTime) {
         super.update(deltaTime);
 
-        // Обновление анимации атаки
         if (isAttacking) {
             attackAnimationTime += deltaTime;
+            float progress = attackAnimationTime / ATTACK_ANIMATION_DURATION;
+
+            // Три фазы анимации
+            if (progress <= 0.33f) {
+                float t = progress / 0.33f;
+                targetAngle = -20f + t * 80f;  // подъём
+            } else if (progress <= 0.66f) {
+                float t = (progress - 0.33f) / 0.33f;
+                targetAngle = 60f - t * 120f;  // удар
+            } else {
+                float t = (progress - 0.66f) / 0.34f;
+                targetAngle = -60f + t * 40f;  // возврат
+            }
+
+            currentAngle = currentAngle + (targetAngle - currentAngle) * 0.3f;
+
             if (attackAnimationTime >= ATTACK_ANIMATION_DURATION) {
                 isAttacking = false;
+                currentAngle = -20f;
+                targetAngle = -20f;
             }
+        } else {
+            currentAngle = currentAngle + (-20f - currentAngle) * 0.2f;
         }
     }
 
-    /**
-     * Атака копьём (мах, без броска)
-     */
     @Override
     public void attack(GameObject target, float currentTime) {
         if (target == null || !target.isAlive()) return;
-
-        // Проверка дистанции
         if (distanceTo(target) > attackRange) return;
-
-        // Проверка кулдауна
         if (currentTime - lastAttackTime < attackCooldown) return;
 
-        // Запускаем анимацию атаки
-        isAttacking = true;
-        attackAnimationTime = 0f;
+        if (!isAttacking) {
+            isAttacking = true;
+            attackAnimationTime = 0f;
+        }
 
-        // Наносим урон
         target.takeDamage(attackDamage);
-
-        // Обновляем время последней атаки
         lastAttackTime = currentTime;
 
         System.out.println("DinoRider атакует копьём! Урон: " + attackDamage);
@@ -74,6 +88,24 @@ public class UnitDinoRider extends BaseUnit {
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
                 RenderingHints.VALUE_ANTIALIAS_ON);
 
+        // ОТРАЖЕНИЕ
+        boolean isFacingLeft = (direction == -1);
+
+        if (isFacingLeft) {
+            Graphics2D g2Mirror = (Graphics2D) g2.create();
+            g2Mirror.translate(x + 60 * scale, y + 30 * scale);
+            g2Mirror.scale(-1, 1);
+            g2Mirror.translate(-(x + 60 * scale), -(y + 30 * scale));
+            drawUnit(g2Mirror);
+            g2Mirror.dispose();
+        } else {
+            drawUnit(g2);
+        }
+
+        drawHealthBar(g2, scale);
+    }
+
+    private void drawUnit(Graphics2D g2) {
         // тень
         g2.setColor(new Color(0, 0, 0, 40));
         g2.fillOval(Math.round(x - 25 * scale), Math.round(y + 50 * scale),
@@ -131,7 +163,7 @@ public class UnitDinoRider extends BaseUnit {
         g2.fillOval(Math.round(x + 110 * scale), Math.round(y - 65 * scale),
                 Math.round(5 * scale), Math.round(7 * scale));
 
-        // всадник с копьём
+        // всадник
         g2.setColor(new Color(108, 29, 13));
         g2.fillRoundRect(Math.round(x + 15 * scale), Math.round(y - 40 * scale),
                 Math.round(40 * scale), Math.round(50 * scale),
@@ -145,32 +177,19 @@ public class UnitDinoRider extends BaseUnit {
         g2.fillOval(Math.round(x + 33 * scale), Math.round(y - 55 * scale),
                 Math.round(5 * scale), Math.round(10 * scale));
 
-        // ===== КОПЬЁ С АНИМАЦИЕЙ АТАКИ =====
+        // копье с плавной анимацией
         Graphics2D gSpear = (Graphics2D) g2.create();
 
-        // Вычисляем угол для анимации
-        float angle = 0f;
-        if (isAttacking) {
-            // При атаке копьё движется вверх-вниз
-            float t = attackAnimationTime / ATTACK_ANIMATION_DURATION;
-            angle = (float) Math.sin(t * Math.PI) * 50f; // мах от -50 до +50 градусов
-        } else {
-            angle = -20f; // обычное положение
-        }
-
-        // Точка вращения (рука всадника)
         int pivotX = Math.round(x + 50 * scale);
         int pivotY = Math.round(y - 20 * scale);
 
-        gSpear.rotate(Math.toRadians(angle), pivotX, pivotY);
+        gSpear.rotate(Math.toRadians(currentAngle), pivotX, pivotY);
 
-        // Рисуем древко копья
         gSpear.setStroke(new BasicStroke(7.0f * scale));
         gSpear.setColor(new Color(121, 67, 25));
         gSpear.drawLine(Math.round(x - 20 * scale), Math.round(y - 15 * scale),
                 Math.round(x + 100 * scale), Math.round(y - 15 * scale));
 
-        // Рисуем наконечник
         gSpear.setStroke(new BasicStroke(3.0f * scale));
         gSpear.setColor(new Color(128, 121, 115));
         int[] xPoints = {
@@ -186,7 +205,5 @@ public class UnitDinoRider extends BaseUnit {
         gSpear.fillPolygon(xPoints, yPoints, 3);
 
         gSpear.dispose();
-
-        drawHealthBar(g2, scale);
     }
 }

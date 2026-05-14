@@ -29,30 +29,30 @@ public class BaseUnit extends GameObject {
         }
     }
 
+    /**
+     * Устанавливает Y-координату юнита (для выравнивания по земле)
+     * @param groundY координата земли
+     */
+    public void setGroundY(float groundY) {
+        this.y = groundY;
+    }
+
     @Override
     public void update(float deltaTime) {
-        super.update(deltaTime);
+        // ВСЕГДА двигаемся (скорость отрицательная = влево)
+        x += speed * deltaTime;
+
         if (!isAlive) return;
 
         Engine engine = Engine.getInstance();
-        GameObject currentTarget = engine.findNearestEnemy(this, attackRange);
+        GameObject target = engine.findNearestEnemy(this, attackRange);
 
-        System.out.println(currentTarget);
-        if (currentTarget != null) {
-            float dist = distanceTo(currentTarget);
-
-            if (dist > attackRange) {
-                // движение к башне
-                moveTowards(currentTarget, deltaTime);
-            } else {
-                // атака в радиусе поражения
-                if (canAttack(engine.getGameTime())) {
-                    attack(currentTarget, engine.getGameTime());
-                    stop();
-                    lastAttackTime = engine.getGameTime();
-                } else {
-                    start();
-                }
+        // Если есть цель и она в радиусе атаки
+        if (target != null && distanceTo(target) <= attackRange) {
+            if (canAttack(engine.getGameTime())) {
+                attack(target, engine.getGameTime());
+                // stop() - УДАЛЁН! Юнит не останавливается после атаки
+                lastAttackTime = engine.getGameTime();
             }
         }
     }
@@ -63,6 +63,16 @@ public class BaseUnit extends GameObject {
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
                 RenderingHints.VALUE_ANTIALIAS_ON);
 
+        //  ОТРАЖЕНИЕ для направления влево (direction == -1)
+        boolean isFacingLeft = (direction == -1);
+
+        if (isFacingLeft) {
+            g2.translate(x + 35 * scale, y + 30 * scale);
+            g2.scale(-1, 1);
+            g2.translate(-(x + 35 * scale), -(y + 30 * scale));
+        }
+
+        // тень
         g2.setColor(new Color(0, 0, 0, 40));
         g2.fillOval(Math.round(x - 25 * scale), Math.round(y + 50 * scale),
                 Math.round(150 * scale), Math.round(20 * scale));
@@ -125,6 +135,13 @@ public class BaseUnit extends GameObject {
         gBat.drawLine(Math.round(bx + 20 * scale), Math.round(by - 2 * scale),
                 Math.round(bx + 105 * scale), Math.round(by - 8 * scale));
         gBat.dispose();
+
+        // Отмена трансформации
+        if (isFacingLeft) {
+            g2.translate(x + 35 * scale, y + 30 * scale);
+            g2.scale(-1, 1);
+            g2.translate(-(x + 35 * scale), -(y + 30 * scale));
+        }
 
         drawHealthBar(g2, scale);
     }

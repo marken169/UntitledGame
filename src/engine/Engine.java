@@ -4,99 +4,231 @@ import src.view.unit.BaseUnit;
 import src.view.unit.UnitArcher;
 import src.view.unit.UnitDinoRider;
 import src.view.unit.UnitGunner;
+import src.view.Arrow;
 
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 public class Engine {
 
-    private float gameTime = 0;
-    private float deltaTime = 0;
-    private int screenWidth = 800;
-    private int screenHeight = 600;
-    private final List<GameObject> objects = new ArrayList<>();
-    private final Random random = new Random();
-    private static Engine engine = null;
-    private float enemySpawnTimer = 0f;
-    private final float ENEMY_SPAWN_INTERVAL = 5f;
+    // Поля класса
+    private List<GameObject> objects;
+    private float enemySpawnTimer;
+    private float deltaTime;
+    private int screenWidth;
+    private int screenHeight;
+    private float gameTime;
+    private int waveIndex = 0; // счётчик волн для паттерна
+    private int frameCounter = 0;
 
-    private Engine() {
-    }
+    private static final float ENEMY_SPAWN_INTERVAL = 5f;
+    private static final float GROUND_Y = 420f;            // УРОВЕНЬ ЗЕМЛИ
+    private static final float SPAWN_X = 1600f;            // за правой границей окна
+
+    private static Engine instance;
 
     public static Engine getInstance() {
-        if (engine == null) {
-            engine = new Engine();
+        if (instance == null) {
+            instance = new Engine();
         }
-        return engine;
+        return instance;
+    }
+
+    private Engine() {
+        this.objects = new ArrayList<>();
+        this.enemySpawnTimer = 0f;
+        this.gameTime = 0f;
+        this.waveIndex = 0;
+        this.frameCounter = 0;
+        this.screenWidth = 1000;
+        this.screenHeight = 800;
     }
 
     public void update(float deltaTime) {
         enemySpawnTimer += deltaTime;
         if (enemySpawnTimer >= ENEMY_SPAWN_INTERVAL) {
-            spawnEnemyMob();
+            spawnEnemyByPattern(); // вызываем ПАТТЕРН вместо случайного спавна
             enemySpawnTimer = 0f;
         }
         this.deltaTime = deltaTime;
-        gameTime += deltaTime;
-        for (int i = 0; i < objects.size(); i++) {
-            objects.get(i).update(deltaTime);
+        this.gameTime += deltaTime;
+
+        // Обновляем все объекты
+        synchronized (objects) {
+            for (int i = 0; i < objects.size(); i++) {
+                GameObject obj = objects.get(i);
+                obj.update(deltaTime);
+                if (!obj.isAlive()) {
+                    objects.remove(i);
+                    i--;
+                }
+            }
         }
-        objects.removeIf(obj -> !obj.isAlive());
+
+        // Каждые 60 кадров выравниваем юниты по земле
+        frameCounter++;
+        if (frameCounter >= 60) {
+            alignUnitsToGround();
+            frameCounter = 0;
+        }
     }
 
-    public void draw(Graphics g) {
+    /**
+     * Принудительно выравнивает всех юнитов по земле
+     */
+    public void alignUnitsToGround() {
         synchronized (objects) {
-            for (GameObject object : objects) {
-                if (object.isAlive()) {
-                    object.draw(g);
+            for (GameObject obj : objects) {
+                if (obj instanceof BaseUnit) {
+                    BaseUnit unit = (BaseUnit) obj;
+
+                    if (unit instanceof UnitDinoRider) {
+                        unit.setY(GROUND_Y + 170);
+                    } else if (unit instanceof UnitArcher) {
+                        unit.setY(GROUND_Y);
+                    } else {
+                        unit.setY(GROUND_Y + 200);
+                    }
                 }
             }
         }
     }
 
-    public void spawnObject(GameObject gameObject) {
-        if (gameObject != null) {
-            synchronized (objects) {
-                objects.add(gameObject);
+    /**
+     * Отрисовывает все объекты игры
+     * @param g графика для рисования
+     */
+    public void draw(Graphics g) {
+        synchronized (objects) {
+            for (GameObject obj : objects) {
+                if (obj.isAlive()) {
+                    obj.draw(g);
+                }
             }
         }
     }
 
-    public boolean collisionAABB(GameObject a, GameObject b) {
-        if (a == null || b == null) return false;
+    /**
+     * Паттерн спавна врагов по заданию преподавателя:
+     * Волна 0: 1 BaseUnit
+     * Волна 1: 2 BaseUnit
+     * Волна 2: 2 BaseUnit + 2 Archer
+     * Волна 3: 1 TankUnit (UnitDinoRider)
+     * Далее повторяем с волны 2
+     */
+    private void spawnEnemyByPattern() {
+        float spawnX = SPAWN_X;
+        float spawnY = GROUND_Y; // ВСЕ ВРАГИ НА УРОВНЕ ЗЕМЛИ
 
-        float halfA = a.getSize() / 2f;
-        float halfB = b.getSize() / 2f;
+        System.out.println("===== ВОЛНА " + (waveIndex + 1) + " =====");
 
-        float leftA = a.getX() - halfA;
-        float rightA = a.getX() + halfA;
-        float topA = a.getY() - halfA;
-        float bottomA = a.getY() + halfA;
+        switch (waveIndex) {
+            case 0:
+                // Волна 1: 1 BaseUnit
+                spawnBaseUnit(spawnX, spawnY);
+                System.out.println("Волна 1: 1 BaseUnit");
+                break;
 
-        float leftB = b.getX() - halfB;
-        float rightB = b.getX() + halfB;
-        float topB = b.getY() - halfB;
-        float bottomB = b.getY() + halfB;
+            case 1:
+                // Волна 2: 2 BaseUnit
+                spawnBaseUnit(spawnX, spawnY);
+                spawnBaseUnit(spawnX + 60, spawnY);
+                System.out.println("Волна 2: 2 BaseUnit");
+                break;
 
-        return rightA > leftB && leftA < rightB && bottomA > topB && topA < bottomB;
+            case 2:
+                // Волна 3: 2 BaseUnit + 2 Archer
+                spawnBaseUnit(spawnX, spawnY);
+                spawnBaseUnit(spawnX + 60, spawnY);
+                spawnArcher(spawnX + 120, spawnY);
+                spawnArcher(spawnX + 180, spawnY);
+                System.out.println("Волна 3: 2 BaseUnit + 2 Archer");
+                break;
+
+            case 3:
+                // Волна 4: 1 TankUnit (UnitDinoRider)
+                spawnTank(spawnX, spawnY);
+                System.out.println("Волна 4: 1 UnitDinoRider (Tank)");
+                waveIndex = 1; // после танка возвращаемся к волне 2
+                return;
+
+            default:
+                waveIndex = -1;
+                break;
+        }
+        waveIndex++;
     }
 
-    public boolean collisionCircle(GameObject a, GameObject b) {
-        if (a == null || b == null) return false;
+    //  МЕТОДЫ СПАВНА ЮНИТОВ
 
-        float radiusA = a.getSize() / 2f;
-        float radiusB = b.getSize() / 2f;
+    private void spawnBaseUnit(float x, float y) {
+        BaseUnit enemy = (BaseUnit) BaseUnit.builder()
+                .x(x)
+                .y(y)
+                .health(100)
+                .attackDamage(20)
+                .attackRange(150f)
+                .build();
 
-        float deltax = a.getX() - b.getX();
-        float deltay = a.getY() - b.getY();
-        float distance = (float) Math.sqrt(deltax * deltax + deltay * deltay);
+        enemy.setSpeed(-80f);      // движение влево
+        enemy.setFraction(1);      // фракция врага
+        enemy.setDirection(-1);    // ВРАГИ ИДУТ ЛИЦОМ ВПЕРЁД
 
-        return distance < radiusA + radiusB;
+        spawnObject(enemy);
     }
 
+    private void spawnArcher(float x, float y) {
+        UnitArcher enemy = (UnitArcher) UnitArcher.builder()
+                .x(x)
+                .y(y)
+                .health(100)
+                .attackDamage(15)
+                .attackRange(200f)
+                .build();
+
+        enemy.setSpeed(-80f);
+        enemy.setFraction(1);
+        enemy.setDirection(-1);
+
+        spawnObject(enemy);
+    }
+
+    private void spawnTank(float x, float y) {
+        // UnitDinoRider - это и есть TankUnit
+        UnitDinoRider enemy = (UnitDinoRider) UnitDinoRider.builder()
+                .x(x)
+                .y(y)
+                .health(300)      // много здоровья (танк)
+                .attackDamage(30)
+                .attackRange(120f)
+                .build();
+
+        enemy.setSpeed(-60f);      // танк медленнее
+        enemy.setFraction(1);
+        enemy.setDirection(-1);
+
+        spawnObject(enemy);
+    }
+
+    //  ОСНОВНЫЕ МЕТОДЫ
+
+    public void spawnObject(GameObject gameObject) {
+        if (gameObject != null) {
+            synchronized (objects) {
+                objects.add(gameObject);
+                System.out.println("Объект заспавнен: " + gameObject.getClass().getSimpleName());
+            }
+        }
+    }
+
+    /**
+     * Создаёт новый поток для спавна объектов по паттерну
+     * @param pattern список объектов для спавна
+     * @param delay задержка между спавном объектов в миллисекундах
+     */
     public void spawnObjectPattern(List<GameObject> pattern, long delay) {
+        // создаёт новый поток
         Thread spawnThread = new Thread(() -> {
             for (int i = 0; i < pattern.size(); i++) {
                 GameObject elem = pattern.get(i);
@@ -105,11 +237,11 @@ public class Engine {
                         -1,
                         elem.getX(),
                         elem.getY(),
-                        100,
-                        elem.getSpeed(),
-                        elem.getColor()
+                        elem.getSize(),
+                        elem.getSpeed()
                 );
                 newObject.setFraction(elem.getFraction());
+                newObject.setDirection(elem.getDirection());
 
                 synchronized (objects) {
                     objects.add(newObject);
@@ -120,8 +252,7 @@ public class Engine {
                     try {
                         Thread.sleep(delay);
                     } catch (InterruptedException e) {
-                        System.out.println("Спавн прерван!");
-                        break;
+                        e.printStackTrace();
                     }
                 }
             }
@@ -134,63 +265,12 @@ public class Engine {
     public void moveTowards(GameObject attacker, GameObject target) {
         if (attacker == null || target == null) return;
         if (!attacker.isAlive() || !target.isAlive()) return;
-
-        float dx = target.getX() - attacker.getX();
-        float dy = target.getY() - attacker.getY();
-        float distance = (float) Math.sqrt(dx * dx + dy * dy);
-
-        if (distance > 0.01f) {
-            float speed = attacker.getSpeed();
-            float moveX = (dx / distance) * speed * deltaTime;
-            float moveY = (dy / distance) * speed * deltaTime;
-
-            attacker.setX(attacker.getX() + moveX);
-            attacker.setY(attacker.getY() + moveY);
-        }
     }
 
-    public List<GameObject> getEnemiesFor(int faction) {
-        List<GameObject> enemies = new ArrayList<>();
-        synchronized (objects) {
-            for (GameObject obj : objects) {
-                if (obj.isAlive() && obj.getFraction() != faction) {
-                    enemies.add(obj);
-                }
-            }
-        }
-        return enemies;
-    }
+    //  ГЕТТЕРЫ 
 
-    public GameObject findNearestEnemy(GameObject self, float range) {
-        if (self == null) return null;
-
-        GameObject nearest = null;
-        float minDistanceSq = range * range;
-
-        synchronized (objects) {
-            for (GameObject obj : objects) {
-                if (obj != self && obj.isAlive() && obj.getFraction() != self.getFraction()) {
-                    float distSq = self.distanceSqTo(obj);
-                    if (distSq < minDistanceSq) {
-                        minDistanceSq = distSq;
-                        nearest = obj;
-                    }
-                }
-            }
-        }
-        return nearest;
-    }
-
-    public List<GameObject> getObjects() {
-        synchronized (objects) {
-            return new ArrayList<>(objects);
-        }
-    }
-
-    public void clearObjects() {
-        synchronized (objects) {
-            objects.clear();
-        }
+    public float getGameTime() {
+        return gameTime;
     }
 
     public int getScreenWidth() {
@@ -201,62 +281,59 @@ public class Engine {
         return screenHeight;
     }
 
-    public void setScreenHeight(int screenHeight) {
-        this.screenHeight = screenHeight;
+    public List<GameObject> getObjects() {
+        return objects;
     }
-
-    public void setScreenWidth(int screenWidth) {
-        this.screenWidth = screenWidth;
-    }
-
-    public float getGameTime() {
-        return gameTime;
-    }
-
-    // ==================== СПАВН РАЗНЫХ ВРАГОВ ====================
 
     /**
-     * Спавн врага каждые ENEMY_SPAWN_INTERVAL секунд
-     * Случайным образом выбирается один из трёх типов врагов
+     * Находит ближайшего врага для атакующего объекта
+     * @param attacker объект, который ищет цель
+     * @param range радиус поиска
+     * @return ближайший объект другой фракции или null
      */
-    private void spawnEnemyMob() {
-        Random random = new Random();
-        int type = random.nextInt(3);
+    public GameObject findNearestEnemy(GameObject attacker, float range) {
+        GameObject nearest = null;
+        float minDist = range;
 
-        BaseUnit enemy;
-        float spawnX = 850f;
-        float spawnY;
-
-        switch (type) {
-            case 0:
-                // Лучник
-                enemy = UnitArcher.builder().build();
-                spawnY = 350f;
-                break;
-            case 1:
-                // Всадник на динозавре (с копьём)
-                enemy = UnitDinoRider.builder().build();
-                spawnY = 300f;
-                break;
-            default:
-                // Стрелок с пистолетом
-                enemy = UnitGunner.builder().build();
-                spawnY = 330f;
-                break;
+        synchronized (objects) {
+            for (GameObject obj : objects) {
+                // Проверяем: объект живой и фракция отличается от атакующего
+                if (obj.isAlive() && obj.getFraction() != attacker.getFraction()) {
+                    float dist = attacker.distanceTo(obj);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        nearest = obj;
+                    }
+                }
+            }
         }
+        return nearest;
+    }
 
-        // Общие параметры для всех врагов
-        enemy.setX(spawnX);
-        enemy.setY(spawnY);
-        enemy.setSpeed(-10f);           // движение влево
-        enemy.setFraction(1);            // фракция врага
-        enemy.setHealth(100);            // здоровье
-        enemy.setAttackDamage(20);       // урон
-        enemy.setAttackRange(150f);      // дальность атаки
+    /**
+     * Проверяет столкновение стрелы с объектом (круг-круг)
+     * @param arrow стрела
+     * @param target цель для проверки
+     * @return true если столкнулись, false если нет
+     */
+    public boolean collisionCircle(Arrow arrow, GameObject target) {
+        if (arrow == null || target == null) return false;
+        if (!target.isAlive()) return false;
 
-        spawnObject(enemy);
+        // Координаты стрелы (центр)
+        float arrowX = arrow.getX();
+        float arrowY = arrow.getY();
+        float arrowRadius = 8f;
 
-        System.out.println("Враг заспавнен: " + enemy.getClass().getSimpleName() +
-                " [x=" + enemy.getX() + ", y=" + enemy.getY() + ", speed=" + enemy.getSpeed() + "]");
+        // Координаты цели (центр)
+        float targetX = target.getX() + target.getSize() / 2f;
+        float targetY = target.getY() + target.getSize() / 2f;
+        float targetRadius = target.getSize() / 2f;
+
+        float dx = arrowX - targetX;
+        float dy = arrowY - targetY;
+        float distance = (float) Math.sqrt(dx * dx + dy * dy);
+
+        return distance < (arrowRadius + targetRadius);
     }
 }

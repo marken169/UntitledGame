@@ -26,12 +26,21 @@ public class UnitDinoRider extends BaseUnit {
         }
     }
 
-    /**
-     * Бросок копья по цели.
-     */
+    @Override
+    public void update(float deltaTime) {
+        super.update(deltaTime);
+    }
+
     @Override
     public void attack(GameObject target, float currentTime) {
-        // todo
+        if (target == null || !target.isAlive()) return;
+        if (distanceTo(target) > attackRange) return;
+        if (currentTime - lastAttackTime < attackCooldown) return;
+
+        target.takeDamage(attackDamage);
+        lastAttackTime = currentTime;
+
+        System.out.println("DinoRider атакует копьём! Урон: " + attackDamage);
     }
 
     @Override
@@ -40,6 +49,24 @@ public class UnitDinoRider extends BaseUnit {
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
                 RenderingHints.VALUE_ANTIALIAS_ON);
 
+        //  ОТРАЖЕНИЕ если direction == -1 (идёт влево)
+        boolean isFacingLeft = (direction == -1);
+
+        if (isFacingLeft) {
+            Graphics2D g2Mirror = (Graphics2D) g2.create();
+            g2Mirror.translate(x + 60 * scale, y + 30 * scale);
+            g2Mirror.scale(-1, 1);
+            g2Mirror.translate(-(x + 60 * scale), -(y + 30 * scale));
+            drawUnit(g2Mirror);
+            g2Mirror.dispose();
+        } else {
+            drawUnit(g2);
+        }
+
+        drawHealthBar(g2, scale);
+    }
+
+    private void drawUnit(Graphics2D g2) {
         // тень
         g2.setColor(new Color(0, 0, 0, 40));
         g2.fillOval(Math.round(x - 25 * scale), Math.round(y + 50 * scale),
@@ -97,7 +124,7 @@ public class UnitDinoRider extends BaseUnit {
         g2.fillOval(Math.round(x + 110 * scale), Math.round(y - 65 * scale),
                 Math.round(5 * scale), Math.round(7 * scale));
 
-        // всадник с копьём
+        // всадник
         g2.setColor(new Color(108, 29, 13));
         g2.fillRoundRect(Math.round(x + 15 * scale), Math.round(y - 40 * scale),
                 Math.round(40 * scale), Math.round(50 * scale),
@@ -111,13 +138,21 @@ public class UnitDinoRider extends BaseUnit {
         g2.fillOval(Math.round(x + 33 * scale), Math.round(y - 55 * scale),
                 Math.round(5 * scale), Math.round(10 * scale));
 
-        // копьё
-        g2.setStroke(new BasicStroke(7.0f * scale));
-        g2.setColor(new Color(121, 67, 25));
-        g2.drawLine(Math.round(x - 20 * scale), Math.round(y - 15 * scale),
+        // КОПЬЁ
+        Graphics2D gSpear = (Graphics2D) g2.create();
+
+        int pivotX = Math.round(x + 50 * scale);
+        int pivotY = Math.round(y - 20 * scale);
+
+        gSpear.rotate(Math.toRadians(-20), pivotX, pivotY);
+
+        gSpear.setStroke(new BasicStroke(7.0f * scale));
+        gSpear.setColor(new Color(121, 67, 25));
+        gSpear.drawLine(Math.round(x - 20 * scale), Math.round(y - 15 * scale),
                 Math.round(x + 100 * scale), Math.round(y - 15 * scale));
-        g2.setStroke(new BasicStroke(3.0f * scale));
-        g2.setColor(new Color(128, 121, 115));
+
+        gSpear.setStroke(new BasicStroke(3.0f * scale));
+        gSpear.setColor(new Color(128, 121, 115));
         int[] xPoints = {
                 Math.round(x + 100 * scale),
                 Math.round(x + 120 * scale),
@@ -128,9 +163,8 @@ public class UnitDinoRider extends BaseUnit {
                 Math.round(y - 15 * scale),
                 Math.round(y - 5 * scale)
         };
-        g2.fillPolygon(xPoints, yPoints, 3);
+        gSpear.fillPolygon(xPoints, yPoints, 3);
 
-        drawHealthBar(g2, scale);
+        gSpear.dispose();
     }
-
 }

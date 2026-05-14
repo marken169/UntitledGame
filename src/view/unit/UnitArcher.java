@@ -13,7 +13,6 @@ import java.awt.*;
  */
 public class UnitArcher extends BaseUnit {
 
-    // настройки лучника
     private static final float ARROW_SPEED = 600f;
 
     public static Builder builder() {
@@ -29,9 +28,7 @@ public class UnitArcher extends BaseUnit {
             return UnitArcher.this;
         }
     }
-    /**
-     * Выстрел по цели.
-     */
+
     @Override
     public void attack(GameObject target, float currentTime) {
         float angle = Arrow.calculateArrowAngle(x, y, target.getX(), target.getY(), ARROW_SPEED);
@@ -47,6 +44,26 @@ public class UnitArcher extends BaseUnit {
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
                 RenderingHints.VALUE_ANTIALIAS_ON);
 
+        //  ОТРАЖЕНИЕ если direction == -1 (идёт влево)
+        boolean isFacingLeft = (direction == -1);
+
+        if (isFacingLeft) {
+            // Сохраняем текущую трансформацию
+            Graphics2D g2dMirror = (Graphics2D) g2d.create();
+            // Переносим центр, отражаем, возвращаем
+            g2dMirror.translate(x + 35 * scale, y + 100 * scale);
+            g2dMirror.scale(-1, 1);
+            g2dMirror.translate(-(x + 35 * scale), -(y + 100 * scale));
+            drawUnit(g2dMirror);
+            g2dMirror.dispose();
+        } else {
+            drawUnit(g2d);
+        }
+
+        drawHealthBar(g2d, scale);
+    }
+
+    private void drawUnit(Graphics2D g2d) {
         // голова
         g2d.setColor(new Color(255, 218, 185));
         g2d.fillOval(Math.round(x), Math.round(y),
@@ -93,8 +110,5 @@ public class UnitArcher extends BaseUnit {
             g2d.drawLine(Math.round(x - 25 * scale), Math.round(y + yOffset * scale),
                     Math.round(x - 10 * scale), Math.round(y + yOffset * scale));
         }
-
-        drawHealthBar(g2d, scale);
     }
-
 }

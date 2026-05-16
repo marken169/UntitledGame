@@ -12,6 +12,13 @@ import java.awt.*;
  */
 public class UnitDinoRider extends BaseUnit {
 
+    // Переменные для анимации атаки
+    private boolean isAttacking = false;
+    private float attackAnimationTime = 0f;
+    private final float ATTACK_ANIMATION_DURATION = 0.4f;
+    private float currentAngle = -20f;
+    private float targetAngle = -20f;
+
     public static Builder builder() {
         return new UnitDinoRider().new Builder();
     }
@@ -29,6 +36,33 @@ public class UnitDinoRider extends BaseUnit {
     @Override
     public void update(float deltaTime) {
         super.update(deltaTime);
+
+        if (isAttacking) {
+            attackAnimationTime += deltaTime;
+            float progress = attackAnimationTime / ATTACK_ANIMATION_DURATION;
+
+            // Три фазы анимации
+            if (progress <= 0.33f) {
+                float t = progress / 0.33f;
+                targetAngle = -20f + t * 80f;  // подъём
+            } else if (progress <= 0.66f) {
+                float t = (progress - 0.33f) / 0.33f;
+                targetAngle = 60f - t * 120f;  // удар
+            } else {
+                float t = (progress - 0.66f) / 0.34f;
+                targetAngle = -60f + t * 40f;  // возврат
+            }
+
+            currentAngle = currentAngle + (targetAngle - currentAngle) * 0.3f;
+
+            if (attackAnimationTime >= ATTACK_ANIMATION_DURATION) {
+                isAttacking = false;
+                currentAngle = -20f;
+                targetAngle = -20f;
+            }
+        } else {
+            currentAngle = currentAngle + (-20f - currentAngle) * 0.2f;
+        }
     }
 
     @Override
@@ -36,6 +70,12 @@ public class UnitDinoRider extends BaseUnit {
         if (target == null || !target.isAlive()) return;
         if (distanceTo(target) > attackRange) return;
         if (currentTime - lastAttackTime < attackCooldown) return;
+
+        if (!isAttacking) {
+            isAttacking = true;
+            attackAnimationTime = 0f;
+        }
+
 
         target.takeDamage(attackDamage);
         lastAttackTime = currentTime;
@@ -48,8 +88,8 @@ public class UnitDinoRider extends BaseUnit {
         Graphics2D g2 = (Graphics2D) g;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
                 RenderingHints.VALUE_ANTIALIAS_ON);
-
         //  ОТРАЖЕНИЕ если direction == -1 (идёт влево)
+
         boolean isFacingLeft = (direction == -1);
 
         if (isFacingLeft) {
@@ -139,12 +179,14 @@ public class UnitDinoRider extends BaseUnit {
                 Math.round(5 * scale), Math.round(10 * scale));
 
         // КОПЬЁ
+
         Graphics2D gSpear = (Graphics2D) g2.create();
 
         int pivotX = Math.round(x + 50 * scale);
         int pivotY = Math.round(y - 20 * scale);
 
         gSpear.rotate(Math.toRadians(-20), pivotX, pivotY);
+
 
         gSpear.setStroke(new BasicStroke(7.0f * scale));
         gSpear.setColor(new Color(121, 67, 25));

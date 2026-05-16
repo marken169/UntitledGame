@@ -76,6 +76,7 @@ public class UnitDinoRider extends BaseUnit {
             attackAnimationTime = 0f;
         }
 
+
         target.takeDamage(attackDamage);
         lastAttackTime = currentTime;
 
@@ -87,8 +88,8 @@ public class UnitDinoRider extends BaseUnit {
         Graphics2D g2 = (Graphics2D) g;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
                 RenderingHints.VALUE_ANTIALIAS_ON);
+        //  ОТРАЖЕНИЕ если direction == -1 (идёт влево)
 
-        // ОТРАЖЕНИЕ
         boolean isFacingLeft = (direction == -1);
 
         if (isFacingLeft) {
@@ -177,13 +178,15 @@ public class UnitDinoRider extends BaseUnit {
         g2.fillOval(Math.round(x + 33 * scale), Math.round(y - 55 * scale),
                 Math.round(5 * scale), Math.round(10 * scale));
 
-        // копье с плавной анимацией
+        // КОПЬЁ
+
         Graphics2D gSpear = (Graphics2D) g2.create();
 
         int pivotX = Math.round(x + 50 * scale);
         int pivotY = Math.round(y - 20 * scale);
 
-        gSpear.rotate(Math.toRadians(currentAngle), pivotX, pivotY);
+        gSpear.rotate(Math.toRadians(-20), pivotX, pivotY);
+
 
         gSpear.setStroke(new BasicStroke(7.0f * scale));
         gSpear.setColor(new Color(121, 67, 25));

@@ -14,6 +14,8 @@ import java.awt.*;
 public class UnitArcher extends BaseUnit {
 
     private static final float ARROW_SPEED = 600f;
+    private static final float ATTACK_COOLDOWN = 2.0f; // 2 секунды между выстрелами
+    private float attackTimer = 0f; // Таймер до следующей атаки
 
     public static Builder builder() {
         return new UnitArcher().new Builder();
@@ -30,7 +32,25 @@ public class UnitArcher extends BaseUnit {
     }
 
     @Override
+    public void update(float deltaTime) {
+        super.update(deltaTime);
+
+        // Обновляем таймер атаки
+        if (attackTimer > 0f) {
+            attackTimer -= deltaTime;
+        }
+    }
+
+    @Override
     public void attack(GameObject target, float currentTime) {
+        // Проверяем, можно ли атаковать
+        if (attackTimer > 0f) {
+            return; // Ещё не прошло 2 секунды, не атакуем
+        }
+
+        // Сбрасываем таймер
+        attackTimer = ATTACK_COOLDOWN;
+
         float angle = Arrow.calculateArrowAngle(x, y, target.getX(), target.getY(), ARROW_SPEED);
         Arrow arrow = new Arrow(x, y, angle, ARROW_SPEED);
         arrow.setAttackDamage(attackDamage);

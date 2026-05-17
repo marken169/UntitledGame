@@ -5,6 +5,7 @@ import src.view.unit.UnitArcher;
 import src.view.unit.UnitDinoRider;
 import src.view.unit.UnitCrocoBanan;
 import src.view.unit.UnitGunner;
+import src.view.unit.UnitAladdin;
 import src.view.Arrow;
 
 import java.awt.*;
@@ -49,13 +50,12 @@ public class Engine {
     public void update(float deltaTime) {
         enemySpawnTimer += deltaTime;
         if (enemySpawnTimer >= ENEMY_SPAWN_INTERVAL) {
-            spawnEnemyByPattern(); // вызываем ПАТТЕРН вместо случайного спавна
+            spawnEnemyByPattern();
             enemySpawnTimer = 0f;
         }
         this.deltaTime = deltaTime;
         this.gameTime += deltaTime;
 
-        // Обновляем все объекты
         synchronized (objects) {
             for (int i = 0; i < objects.size(); i++) {
                 GameObject obj = objects.get(i);
@@ -67,7 +67,6 @@ public class Engine {
             }
         }
 
-        // Каждые 60 кадров выравниваем юниты по земле
         frameCounter++;
         if (frameCounter >= 60) {
             alignUnitsToGround();
@@ -75,9 +74,6 @@ public class Engine {
         }
     }
 
-    /**
-     * Принудительно выравнивает всех юнитов по земле
-     */
     public void alignUnitsToGround() {
         alignUnitsToGround(GROUND_Y);
     }
@@ -90,8 +86,10 @@ public class Engine {
 
                     if (unit instanceof UnitDinoRider) {
                         unit.setY(groundY - 30);
+                    } else if (unit instanceof UnitAladdin) {
+                        // Верблюд чуть ниже динозавра — туловище приземистее
+                        unit.setY(groundY - 25);
                     } else if (unit instanceof UnitCrocoBanan) {
-                        // Крокодил чуть ниже динозавра — туловище приземистее
                         unit.setY(groundY - 20);
                     } else if (unit instanceof UnitArcher) {
                         unit.setY(groundY);
@@ -103,10 +101,6 @@ public class Engine {
         }
     }
 
-    /**
-     * Отрисовывает все объекты игры
-     * @param g графика для рисования
-     */
     public void draw(Graphics g) {
         synchronized (objects) {
             for (GameObject obj : objects) {
@@ -123,31 +117,29 @@ public class Engine {
      * Волна 1: 2 BaseUnit
      * Волна 2: 2 BaseUnit + 2 Archer
      * Волна 3: 1 TankUnit (UnitDinoRider)
-     * Волна 4: 1 UnitCrocoBanan - новая волна
+     * Волна 4: 1 UnitCrocoBanan
+     * Волна 5: 1 UnitAladdin - новая волна
      * Далее повторяем с волны 2
      */
     private void spawnEnemyByPattern() {
         float spawnX = screenWidth * SPAWN_X_FRAC;
-        float spawnY = GROUND_Y; // ВСЕ ВРАГИ НА УРОВНЕ ЗЕМЛИ
+        float spawnY = GROUND_Y;
 
         System.out.println("===== ВОЛНА " + (waveIndex + 1) + " =====");
 
         switch (waveIndex) {
             case 0:
-                // Волна 1: 1 BaseUnit
                 spawnBaseUnit(spawnX, spawnY);
                 System.out.println("Волна 1: 1 BaseUnit");
                 break;
 
             case 1:
-                // Волна 2: 2 BaseUnit
                 spawnBaseUnit(spawnX, spawnY);
                 spawnBaseUnit(spawnX + 60, spawnY);
                 System.out.println("Волна 2: 2 BaseUnit");
                 break;
 
             case 2:
-                // Волна 3: 2 BaseUnit + 2 Archer
                 spawnBaseUnit(spawnX, spawnY);
                 spawnBaseUnit(spawnX + 60, spawnY);
                 spawnArcher(spawnX + 120, spawnY);
@@ -156,17 +148,20 @@ public class Engine {
                 break;
 
             case 3:
-                // Волна 4: 1 TankUnit (UnitDinoRider)
                 spawnTank(spawnX, spawnY);
                 System.out.println("Волна 4: 1 UnitDinoRider (Tank)");
                 break;
 
-                //by Belyakina Maria
+            //by Belyakina Maria
             case 4:
-                // Волна 5: 1 UnitCrocoBanan
                 spawnCrocoBanan(spawnX, spawnY);
                 System.out.println("Волна 5: 1 UnitCrocoBanan");
-                waveIndex = 1; // после крокобанана возвращаемся к волне 2
+                break;
+
+            case 5:
+                spawnAladdin(spawnX, spawnY);
+                System.out.println("Волна 6: 1 UnitAladdin (Camel Rider)");
+                waveIndex = 1; // после Аладдина возвращаемся к волне 2
                 return;
 
             default:
@@ -187,9 +182,9 @@ public class Engine {
                 .attackRange(150f)
                 .build();
 
-        enemy.setSpeed(-80f);      // движение влево
-        enemy.setFraction(1);      // фракция врага
-        enemy.setDirection(-1);    // ВРАГИ ИДУТ ЛИЦОМ ВПЕРЁД
+        enemy.setSpeed(-80f);
+        enemy.setFraction(1);
+        enemy.setDirection(-1);
 
         spawnObject(enemy);
     }
@@ -211,16 +206,15 @@ public class Engine {
     }
 
     private void spawnTank(float x, float y) {
-        // UnitDinoRider - это и есть TankUnit
         UnitDinoRider enemy = (UnitDinoRider) UnitDinoRider.builder()
                 .x(x)
                 .y(y)
-                .health(300)      // много здоровья (танк)
+                .health(300)
                 .attackDamage(30)
                 .attackRange(120f)
                 .build();
 
-        enemy.setSpeed(-60f);      // танк медленнее
+        enemy.setSpeed(-60f);
         enemy.setFraction(1);
         enemy.setDirection(-1);
 
@@ -231,12 +225,28 @@ public class Engine {
         UnitCrocoBanan enemy = (UnitCrocoBanan) UnitCrocoBanan.builder()
                 .x(x)
                 .y(y)
-                .health(250)       // прочнее обычного, но слабее DinoRider
-                .attackDamage(25)  // средний урон кокосом
-                .attackRange(180f) // дальнобойный — стреляет издалека
+                .health(250)
+                .attackDamage(25)
+                .attackRange(180f)
                 .build();
 
-        enemy.setSpeed(-65f);      // чуть быстрее танка, но медленнее лучника
+        enemy.setSpeed(-65f);
+        enemy.setFraction(1);
+        enemy.setDirection(-1);
+
+        spawnObject(enemy);
+    }
+
+    private void spawnAladdin(float x, float y) {
+        UnitAladdin enemy = (UnitAladdin) UnitAladdin.builder()
+                .x(x)
+                .y(y)
+                .health(200)       // средняя прочность — между Archer и DinoRider
+                .attackDamage(20)  // урон вилкой
+                .attackRange(140f) // ближний бой + чуть дальше лапы
+                .build();
+
+        enemy.setSpeed(-70f);      // подвижнее танка, но медленнее лучника
         enemy.setFraction(1);
         enemy.setDirection(-1);
 
@@ -254,13 +264,7 @@ public class Engine {
         }
     }
 
-    /**
-     * Создаёт новый поток для спавна объектов по паттерну
-     * @param pattern список объектов для спавна
-     * @param delay задержка между спавном объектов в миллисекундах
-     */
     public void spawnObjectPattern(List<GameObject> pattern, long delay) {
-        // создаёт новый поток
         Thread spawnThread = new Thread(() -> {
             for (int i = 0; i < pattern.size(); i++) {
                 GameObject elem = pattern.get(i);
@@ -317,19 +321,12 @@ public class Engine {
         return objects;
     }
 
-    /**
-     * Находит ближайшего врага для атакующего объекта
-     * @param attacker объект, который ищет цель
-     * @param range радиус поиска
-     * @return ближайший объект другой фракции или null
-     */
     public GameObject findNearestEnemy(GameObject attacker, float range) {
         GameObject nearest = null;
         float minDist = range;
 
         synchronized (objects) {
             for (GameObject obj : objects) {
-                // Проверяем: объект живой и фракция отличается от атакующего
                 if (obj.isAlive() && obj.getFraction() != attacker.getFraction()) {
                     float dist = attacker.distanceTo(obj);
                     if (dist < minDist) {
@@ -342,22 +339,14 @@ public class Engine {
         return nearest;
     }
 
-    /**
-     * Проверяет столкновение стрелы с объектом (круг-круг)
-     * @param arrow стрела
-     * @param target цель для проверки
-     * @return true если столкнулись, false если нет
-     */
     public boolean collisionCircle(Arrow arrow, GameObject target) {
         if (arrow == null || target == null) return false;
         if (!target.isAlive()) return false;
 
-        // Координаты стрелы (центр)
         float arrowX = arrow.getX();
         float arrowY = arrow.getY();
         float arrowRadius = 8f;
 
-        // Координаты цели (центр)
         float targetX = target.getX() + target.getSize() / 2f;
         float targetY = target.getY() + target.getSize() / 2f;
         float targetRadius = target.getSize() / 2f;

@@ -6,6 +6,7 @@ import src.engine.Engine;
 import src.engine.MyIcon;
 import src.view.unit.BaseUnit;
 import src.view.unit.UnitArcher;
+import src.view.unit.UnitAladdin;
 import src.view.unit.UnitCrocoBanan;
 import src.view.unit.UnitDinoRider;
 
@@ -85,6 +86,23 @@ public class Controls extends JPanel {
                         .size(80)
                         .build();
                 game.spawnObject(unitCrocoBanan);
+            } else {
+                System.out.println(" Не хватает валюты! Нужно 6 у.к.");
+            }
+        }));
+
+        // Кнопка Aladdin - 6 у.к.
+        add(new Button("Spawn Aladdin", new MyIcon(UnitAladdin.builder().notVisibleHeathBar().build()), () -> {
+            if (currency.spend(6)) {
+                UnitAladdin unitAladdin = (UnitAladdin) UnitAladdin.builder()
+                        .fraction(fractionFriend)
+                        .speed(1)
+                        .attackRange(140)
+                        .x(playerSpawnX)
+                        .y(game.getScreenHeight() - 230)
+                        .size(80)
+                        .build();
+                game.spawnObject(unitAladdin);
             } else {
                 System.out.println(" Не хватает валюты! Нужно 6 у.к.");
             }

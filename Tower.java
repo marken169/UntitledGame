@@ -11,7 +11,7 @@ public class Tower extends GameObject {
 
     // Перечисление типов башен
     public enum TowerType {
-        STONE(200, 120, 80, new Color(140, 120, 100)),
+        STONE(200, 140, 95, new Color(140, 120, 100)),
         WOODEN(150, 100, 60, new Color(160, 130, 80)),
         RUINED(70, 90, 50, new Color(100, 85, 70));
 
@@ -36,6 +36,7 @@ public class Tower extends GameObject {
     // Параметры башни
     private TowerType towerType;
     private float xOffset;
+    private float relativeX = 0.1f; // доля от ширины панели
     private float degradeThresholdStoneToWooden;
     private float degradeThresholdWoodenToRuined;
 
@@ -44,7 +45,7 @@ public class Tower extends GameObject {
     private static final float DEFAULT_DEGRADE_THRESHOLD_2 = 0.2f;
 
     // Константы для отрисовки
-    private static final int TOWER_HEIGHT = 300;
+    private static final int TOWER_HEIGHT = 360;
     private static final int WINDOW_HEIGHT_OFFSET = 150;
     private static final int DOOR_WIDTH = 40;
     private static final int DOOR_HEIGHT = 60;
@@ -212,6 +213,8 @@ public class Tower extends GameObject {
     public TowerType getTowerType() { return towerType; }
     public float getXOffset() { return xOffset; }
     public void setXOffset(float xOffset) { this.xOffset = xOffset; }
+    public float getRelativeX() { return relativeX; }
+    public void setRelativeX(float relX) { this.relativeX = relX; }
 
     public float getDegradeThreshold1() { return degradeThresholdStoneToWooden; }
     public float getDegradeThreshold2() { return degradeThresholdWoodenToRuined; }
@@ -230,7 +233,7 @@ public class Tower extends GameObject {
     public void draw(Graphics g) {
         if (!isAlive && !isDying) return;
 
-        Graphics2D g2d = (Graphics2D) g.create();
+        Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setStroke(new BasicStroke(3, BasicStroke.CAP_ROUND, BasicStroke.JOIN_MITER));
 

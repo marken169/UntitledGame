@@ -3,6 +3,7 @@ package src.engine;
 import src.view.unit.BaseUnit;
 import src.view.unit.UnitArcher;
 import src.view.unit.UnitDinoRider;
+import src.view.unit.UnitCrocoBanan;
 import src.view.unit.UnitGunner;
 import src.view.Arrow;
 
@@ -89,6 +90,9 @@ public class Engine {
 
                     if (unit instanceof UnitDinoRider) {
                         unit.setY(groundY - 30);
+                    } else if (unit instanceof UnitCrocoBanan) {
+                        // Крокодил чуть ниже динозавра — туловище приземистее
+                        unit.setY(groundY - 20);
                     } else if (unit instanceof UnitArcher) {
                         unit.setY(groundY);
                     } else {
@@ -114,11 +118,12 @@ public class Engine {
     }
 
     /**
-     * Паттерн спавна врагов по заданию преподавателя:
+     * Паттерн спавна врагов:
      * Волна 0: 1 BaseUnit
      * Волна 1: 2 BaseUnit
      * Волна 2: 2 BaseUnit + 2 Archer
      * Волна 3: 1 TankUnit (UnitDinoRider)
+     * Волна 4: 1 UnitCrocoBanan - новая волна
      * Далее повторяем с волны 2
      */
     private void spawnEnemyByPattern() {
@@ -154,7 +159,14 @@ public class Engine {
                 // Волна 4: 1 TankUnit (UnitDinoRider)
                 spawnTank(spawnX, spawnY);
                 System.out.println("Волна 4: 1 UnitDinoRider (Tank)");
-                waveIndex = 1; // после танка возвращаемся к волне 2
+                break;
+
+                //by Belyakina Maria
+            case 4:
+                // Волна 5: 1 UnitCrocoBanan
+                spawnCrocoBanan(spawnX, spawnY);
+                System.out.println("Волна 5: 1 UnitCrocoBanan");
+                waveIndex = 1; // после крокобанана возвращаемся к волне 2
                 return;
 
             default:
@@ -209,6 +221,22 @@ public class Engine {
                 .build();
 
         enemy.setSpeed(-60f);      // танк медленнее
+        enemy.setFraction(1);
+        enemy.setDirection(-1);
+
+        spawnObject(enemy);
+    }
+
+    private void spawnCrocoBanan(float x, float y) {
+        UnitCrocoBanan enemy = (UnitCrocoBanan) UnitCrocoBanan.builder()
+                .x(x)
+                .y(y)
+                .health(250)       // прочнее обычного, но слабее DinoRider
+                .attackDamage(25)  // средний урон кокосом
+                .attackRange(180f) // дальнобойный — стреляет издалека
+                .build();
+
+        enemy.setSpeed(-65f);      // чуть быстрее танка, но медленнее лучника
         enemy.setFraction(1);
         enemy.setDirection(-1);
 
